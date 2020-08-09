@@ -1,0 +1,11 @@
+/* You can add global styles to this file, and also import other style files */
+.sidebar-new-file{
+  font-size:11px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  padding:0 20px;
+  margin-bottom:15px;
+  color:#212529;
+  font-weight:500;
+  display:block
+}
