@@ -1,18 +1,28 @@
 <div class="signin-wrapper">
+  <form [formGroup]="loginForm" (ngSubmit)="doLogin()" >
 
-  <div class="signin-box">
-    <h2 class="slim-logo"><a href="index.html">slim<span>.</span></a></h2>
-    <h2 class="signin-title-primary">Welcome back!</h2>
-    <h3 class="signin-title-secondary">Sign in to continue.</h3>
+    <div class="signin-box">
+      <h2 class="slim-logo"><a routerLink="/">Edm<span>.</span></a></h2>
+      <h2 class="signin-title-primary">Welcome back!</h2>
+      <h3 class="signin-title-secondary">Sign in to continue.</h3>
 
-    <div class="form-group">
-      <input type="text" class="form-control" placeholder="Enter your email">
-    </div><!-- form-group -->
-    <div class="form-group mg-b-50">
-      <input type="password" class="form-control" placeholder="Enter your password">
-    </div><!-- form-group -->
-    <button class="btn btn-primary btn-block btn-signin">Sign In</button>
-    <p class="mg-b-0">Don't have an account? <a href="page-signup.html">Sign Up</a></p>
-  </div><!-- signin-box -->
+      <div class="form-group">
+        <input formControlName="email" type="email" name="email"  class="form-control" placeholder="Enter your email">
+        <div *ngIf="formErrors && formErrors.email.errors" class="text-danger" [hidden]="!formErrors.email.errors">
+          <small *ngIf="formErrors.email.errors.required">You must provider an email </small>
+        </div>
+        <div *ngIf="errors" class="text-danger" [hidden]="!errors">
+          Incorrect email or password
+        </div>
+      </div><!-- form-group -->
+      <div class="form-group mg-b-50">
+        <input formControlName="password" name="password" type="password" class="form-control" placeholder="Enter your password">
+        <div *ngIf="formErrors && formErrors.password.errors" class="text-danger" [hidden]="!formErrors.password.errors">
+          <small *ngIf="formErrors.password.errors.required">You must provider a password </small>
+        </div>
 
+      </div><!-- form-group -->
+      <button  [class.spinner]="loading" [disabled]="loading" type="submit" class="btn btn-primary btn-block btn-signin">Sign In</button>
+    </div><!-- signin-box -->
+  </form>
 </div><!-- signin-wrapper -->

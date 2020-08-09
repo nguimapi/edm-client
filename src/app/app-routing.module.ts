@@ -4,12 +4,15 @@ import {AnonymousGuardService} from './services/anonymous-guard.service';
 import {HomeComponent} from './components/home/home.component';
 import {NotFoundComponent} from './components/not-found/not-found.component';
 import {AppOneComponent} from './components/app-one/app-one.component';
+import {AuthGuardService} from './services/auth-guard.service';
 
 export const routes: Routes = [
   {path: '', children: [
       { path: '', redirectTo: 'app', pathMatch: 'full'},
-      { path: 'login', component: LoginComponent},
-      {path: 'app', component: AppOneComponent, children: [
+      { path: 'login', component: LoginComponent, canActivate: [AnonymousGuardService]},
+      {path: 'app', component: AppOneComponent, canActivate: [AuthGuardService],
+
+        children: [
           { path: '', component: HomeComponent },
         ]
       },

@@ -1,4 +1,28 @@
 /* You can add global styles to this file, and also import other style files */
+
+.toast{
+
+  opacity: 1 !important;
+  font-weight: bold;
+}
+
+.toast-message{
+  width: 100%;
+
+
+}
+
+.toast-container{
+  width: 1000px;
+
+
+}
+
+.toast-top-center {
+  margin-top: 80px;
+}
+
+
 .sidebar-new-file{
   font-size:11px;
   letter-spacing:1px;

@@ -1,5 +1,6 @@
 import { BrowserModule } from '@angular/platform-browser';
-import { NgModule } from '@angular/core';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { NgModule, LOCALE_ID } from '@angular/core';
 import { AppComponent } from './app.component';
 import { LoginComponent } from './components/login/login.component';
 import {AuthService} from './services/auth.service';
@@ -13,6 +14,9 @@ import { HeaderComponent } from './components/header/header.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { FooterComponent } from './components/footer/footer.component';
 import { AppOneComponent } from './components/app-one/app-one.component';
+import {ReactiveFormsModule} from '@angular/forms';
+import {AnonymousGuardService} from './services/anonymous-guard.service';
+import { HttpClientModule } from '@angular/common/http';
 
 @NgModule({
   declarations: [
@@ -28,7 +32,7 @@ import { AppOneComponent } from './components/app-one/app-one.component';
   ],
   imports: [
     BrowserModule,
-    RouterModule.forRoot(routes, { useHash: false, preloadingStrategy: PreloadAllModules }),
+    RouterModule.forRoot(routes, {useHash: false, preloadingStrategy: PreloadAllModules}),
     ToastrModule.forRoot({
       timeOut: 2000,
       positionClass: 'toast-top-center',
@@ -36,10 +40,15 @@ import { AppOneComponent } from './components/app-one/app-one.component';
       maxOpened: 1
 
     }),
+    ReactiveFormsModule,
+    HttpClientModule,
+    BrowserAnimationsModule
   ],
   providers: [
     AuthService,
-    AuthGuardService
+    AuthGuardService,
+    AnonymousGuardService,
+    { provide: LOCALE_ID, useValue: 'en' },
   ],
   bootstrap: [AppComponent]
 })

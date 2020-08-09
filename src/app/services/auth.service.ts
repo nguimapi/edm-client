@@ -104,9 +104,9 @@ export class AuthService {
                 () => {
                   this.resolveAuthorization().then(
                     () => {
-                      this.router.navigate(['']).then(
+                      this.router.navigate(['/login']).then(
                         () => {
-                          this.toastr.error('L\'authentification a échoué. Veuillez réésayer plus tard');
+                          this.toastr.error('The authentication failed. Try again later.');
                         }
                       );
                     }
@@ -269,9 +269,9 @@ export class AuthService {
               this.logout().then(
                 (tokenData: TokenData) => {
                   this.storeValidToken(tokenData, tokenData.grant_type);
-                  this.router.navigate(['']).then(
+                  this.router.navigate(['/login']).then(
                     () => {
-                      this.toastr.error('L\'authentification a échoué. Veuillez réésayer plus tard');
+                      this.toastr.error('The authentication failed. Try again later.');
                     }
                   );
                 },
