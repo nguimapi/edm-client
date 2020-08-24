@@ -2,26 +2,17 @@ import { Injectable } from '@angular/core';
 import {AuthService} from './auth.service';
 
 @Injectable({
-    providedIn: 'root'
+  providedIn: 'root'
 })
 export class UserService {
 
-    constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService) {}
 
-    getUserInformations() {
-        return this.authService.get('users/me', {});
-    }
+  getUserFiles(userId): any {
+    return this.authService.get('users/' + userId + '/files');
+  }
 
-    createUser(user: FormData) {
-        return this.authService.post('users', user);
-    }
-
-    getUser(id) {
-        return this.authService.get('users' + '/' + id);
-    }
-
-    public editProfil(data, id) {
-        return this.authService.post('users/' + id, data);
-
-    }
+  getUserInformations(): any {
+    return this.authService.get('users/me', {});
+  }
 }
