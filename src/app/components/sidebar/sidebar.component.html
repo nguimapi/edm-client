@@ -6,9 +6,9 @@
       </a>
       <div class="dropdown-menu wd-200 pd-5">
         <nav class="nav dropdown-nav">
-          <a href="" class="nav-link"><i class="icon ion-ios-plus"></i>Folder</a>
-          <a href="" class="nav-link"><i class="icon ion-ios-folder"></i> Import a folder</a>
-          <a href="" class="nav-link"><i class="icon ion-ios-download"></i>Import a file</a>
+          <a data-toggle="modal" data-target="#modalNewFolder"  href="#" class="nav-link"><i class="icon ion-ios-plus"></i>Folder</a>
+          <a (click)="$event.preventDefault(); selectFile('upload-folder-input')" href="#" class="nav-link"><i class="icon ion-ios-folder"></i> Import a folder</a>
+          <a (click)="$event.preventDefault(); selectFile('upload-file-input')" href="#" class="nav-link"><i class="icon ion-ios-download"></i>Import a file</a>
         </nav>
       </div><!-- dropdown-menu -->
     </div><!-- dropdown -->
@@ -17,7 +17,7 @@
   <ul class="nav nav-sidebar">
 
     <li class="sidebar-nav-item">
-      <a href="page-messages.html" class="sidebar-nav-link"><i class="icon ion-ios-home-outline"></i> Home</a>
+      <a routerLinkActive="active" routerLink="/app" class="sidebar-nav-link"><i class="icon ion-ios-home-outline"></i> Home</a>
     </li>
     <li class="sidebar-nav-item with-sub">
       <a href="" class="sidebar-nav-link"><i class="icon ion-ios-time-outline"></i> Recent elements</a>

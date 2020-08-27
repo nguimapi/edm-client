@@ -3,8 +3,8 @@ import {AuthService} from '../../services/auth.service';
 import {TokenData} from '../../models/user';
 import {Router} from '@angular/router';
 import {ToastrService} from 'ngx-toastr';
-import {AuthUser} from "../../models/auth-user.model";
-import {Subscription} from "rxjs";
+import {AuthUser} from '../../models/auth-user.model';
+import {Subscription} from 'rxjs';
 
 @Component({
   selector: 'app-header',
@@ -14,7 +14,7 @@ import {Subscription} from "rxjs";
 export class HeaderComponent implements OnInit {
 
   authUser: AuthUser;
-  authUserSubscription: Subscription
+  authUserSubscription: Subscription;
 
   constructor(private authService: AuthService,
               private router: Router,

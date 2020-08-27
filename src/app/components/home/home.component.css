@@ -1,0 +1,36 @@
+@media (min-width: 576px) {
+    .slim-pageheader {
+        padding: 25px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-direction: row;
+    }
+}
+
+.breadcrumb-item+.breadcrumb-item::before {
+    display: inline-block;
+    padding-right: .5rem;
+    color: #6c757d;
+    content: " > ";
+}
+
+.upload-progress-section{
+    position: fixed;
+    bottom: 20px;
+    right: 10px;
+    display: none;
+
+}
+
+.upload-progress-section.show{
+    display: block;
+}
+
+.upload-progress-section .upload-progress{
+    display: none;
+}
+
+.upload-progress-section .upload-progress.show{
+    display: block;
+}

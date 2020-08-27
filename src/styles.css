@@ -1,5 +1,12 @@
 /* You can add global styles to this file, and also import other style files */
 
+.file-item{
+  cursor: pointer;
+}
+.file-item span {
+  color: #495057;
+}
+
 .toast{
 
   opacity: 1 !important;

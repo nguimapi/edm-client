@@ -17,6 +17,7 @@ import { AppOneComponent } from './components/app-one/app-one.component';
 import {ReactiveFormsModule} from '@angular/forms';
 import {AnonymousGuardService} from './services/anonymous-guard.service';
 import { HttpClientModule } from '@angular/common/http';
+import { UploadFilesComponent } from './components/upload-files/upload-files.component';
 
 @NgModule({
   declarations: [
@@ -27,7 +28,8 @@ import { HttpClientModule } from '@angular/common/http';
     HeaderComponent,
     SidebarComponent,
     FooterComponent,
-    AppOneComponent
+    AppOneComponent,
+    UploadFilesComponent
 
   ],
   imports: [

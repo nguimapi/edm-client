@@ -14,6 +14,7 @@ export const routes: Routes = [
 
         children: [
           { path: '', component: HomeComponent },
+          { path: ':path/:id', component: HomeComponent },
         ]
       },
 
