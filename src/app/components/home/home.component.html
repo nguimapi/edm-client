@@ -51,9 +51,9 @@
                                     <div class="dropdown-menu wd-200 pd-5">
                                         <nav class="nav dropdown-nav">
                                             <a (click)="$event.preventDefault(); open(file)" href="" class="nav-link"><i class="icon ion-ios-eye"></i>Open</a>
-                                            <a href="" class="nav-link"><i class="icon ion-ios-download"></i>Download</a>
+                                            <a id="file.link" download="{{file.name}}" href="" class="nav-link"><i class="icon ion-ios-download"></i>Download</a>
                                             <a href="" class="nav-link"><i class="icon ion-android-exit"></i> Move</a>
-                                            <a href="" class="nav-link"><i class="icon ion-edit"></i>Rename</a>
+                                            <a (click)="highlightedFile = file; renameFileInput.setValue(highlightedFile.name)" data-toggle="modal" data-target="#modalRenameFile" href="#" class="nav-link"><i class="icon ion-edit"></i>Rename</a>
                                             <a href="" class="nav-link"><i class="icon ion-archive"></i>Archive</a>
                                             <a href="" class="nav-link"><i class="icon ion-ios-trash"></i>Delete</a>
                                         </nav>
@@ -77,11 +77,11 @@
 
 <input  multiple="multiple"
         hidden
-        [disabled]="fileIsLoading || fileIsUploading" name="myFile"
+        name="myFile"
         id="upload-file-input" type="file"
         (change)="detectFile($event)" accept="*"/>
 
-<input [disabled]="fileIsLoading || fileIsUploading" name="myFile"
+<input  name="myFile"
        id="upload-folder-input" type="file"
        webkitdirectory directory multiple
        hidden
@@ -99,21 +99,30 @@
             </div><!-- card-option -->
         </div><!-- card-header -->
         <div id="upload-progress" class="card-body bd bd-t-0 rounded-bottom-0 pd-0-force upload-progress show">
+            <div class="header-file-upload">
+                <a href="">Cancel</a>
+            </div>
             <div *ngFor="let file of getDisplayUploadingFiles()" class="file-item uploading">
                 <div class="row no-gutters wd-100p">
                     <div class="col-10 d-flex align-items-center">
-                        <i class="fa fa-file-image-o"></i>
+                        <i class="{{getFileIconClass(file)}}"></i>
                         <a href="">{{file.name | slice:0:25}}
-                            <ng-container *ngIf="file.name.length > 25" >
-                                ...
+                            <ng-container *ngIf="file.name.length > 25" >...</ng-container>
+
+                            <ng-container *ngIf="file.is_folder">
+                                ({{ getTotalUploadedFiledAt(file.batch) + '/' + getTotalFilesAt(file.batch)}})
                             </ng-container>
                         </a>
                     </div><!-- col-6 -->
-                    <div *ngIf="file.hasUploaded && file.hasJustUploaded && file.isConfirmed" class="col-2 tx-right mg-t-5 mg-sm-t-0 tx-24">
+                    <div *ngIf="file.hasUploaded && file.hasJustUploaded && file.is_confirmed" class="col-2 tx-right mg-t-5 mg-sm-t-0 tx-24">
                         <a href=""><i class="icon ion-ios-checkmark-outline text-success"></i></a>
                     </div>
 
-                    <div *ngIf="file.isUploading" class="col-2 tx-right mg-t-5 mg-sm-t-0" style="padding: 9px">
+                    <div *ngIf="file.hasError" class="col-2 tx-right mg-t-5 mg-sm-t-0 tx-24">
+                        <a href=""><i class="icon ion-android-warning text-danger"></i></a>
+                    </div>
+
+                    <div *ngIf="(file.isUploading || !file.is_confirmed) && !file.hasError" class="col-2 tx-right mg-t-5 mg-sm-t-0" style="padding: 9px">
                         <a href=""><circle-progress [percent]="getPercentageLoaded(file.batch)"></circle-progress></a>
                     </div>
                 </div><!-- row -->
@@ -128,7 +137,7 @@
         <div class="modal-content bd-0 tx-14">
             <div class="modal-header pd-x-20">
                 <h6 class="tx-14 mg-b-0 tx-uppercase tx-inverse tx-bold">New folder</h6>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <button (click)="error = null; submittedFolderForm = false; newFolderInput.setValue('')" type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -141,12 +150,47 @@
                                 <div *ngIf="newFolderInput.errors.required">Please enter a name</div>
                                 <div *ngIf="newFolderInput.errors.maxlength">Maximum length exceeded</div>
                             </div>
+                            <div class="text-danger" *ngIf="error">
+                                <div *ngIf="error">{{error.description}}</div>
+                            </div>
                         </div><!-- form-group -->
                     </div><!-- col -->
                 </div><!-- row -->
             </div>
             <div class="modal-footer justify-content-center">
-                <button (click)="createFolder()" type="button" class="btn btn-primary">Create</button>
+                <button [disabled]="isCreatingFolder" (click)="createFolder()" type="button" class="btn btn-primary">Create</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div><!-- modal-dialog -->
+</div><!-- modal -->
+<div id="modalRenameFile" class="modal fade">
+    <div *ngIf="highlightedFile" class="modal-dialog modal-md" role="document">
+        <div class="modal-content bd-0 tx-14">
+            <div class="modal-header pd-x-20">
+                <h6 class="tx-14 mg-b-0 tx-uppercase tx-inverse tx-bold">Rename {{highlightedFile.name}}</h6>
+                <button (click)="error = null; highlightedFile = null; submittedRenameForm = false; renameFileInput.setValue('')" type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body pd-20">
+                <div class="row">
+                    <div class="col-lg">
+                        <div class="form-group has-danger mg-b-0">
+                            <input autofocus [formControl]="renameFileInput" [class.is-invalid]="submittedRenameForm && renameFileInput.invalid" class="form-control" placeholder="New name" type="text">
+                            <div class="text-danger" *ngIf="submittedRenameForm && renameFileInput.invalid">
+                                <div *ngIf="renameFileInput.errors.required">Please enter a name</div>
+                                <div *ngIf="renameFileInput.errors.maxlength">Maximum length exceeded</div>
+                            </div>
+                            <div class="text-danger" *ngIf="error">
+                                <div *ngIf="error">{{error.description}}</div>
+                            </div>
+                        </div><!-- form-group -->
+                    </div><!-- col -->
+                </div><!-- row -->
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button [disabled]="isUpdatingFIle" (click)="updateFile(highlightedFile, {name: renameFileInput.value})" type="button" class="btn btn-primary">Rename</button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
             </div>
         </div>

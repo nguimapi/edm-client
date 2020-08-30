@@ -61,7 +61,7 @@ import {TruncatePipe} from './pipe/truncate.pipe';
             subtitleFontWeight: '400',
             imageHeight: 117,
             imageWidth: 99,
-            animationDuration: 2000,
+            animationDuration: 0,
             showTitle: false,
             showSubtitle: false,
             showUnits: false,

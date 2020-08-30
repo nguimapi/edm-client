@@ -12,6 +12,10 @@ export class UserService {
         return this.authService.post('users/' + userId + '/folders', params);
     }
 
+    updateUserFile(userId: number, params: any = {}): any {
+        return this.authService.post('users/' + userId + '/folders', params);
+    }
+
     getUserFiles(userId: number): any {
         return this.authService.get('users/' + userId + '/files');
     }

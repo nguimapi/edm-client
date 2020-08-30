@@ -28,9 +28,14 @@ export class HomeComponent implements OnInit, OnDestroy{
     acceptedFormats: any = '*';
     fileIsLoading: boolean;
     newFolderInput = new FormControl('', [Validators.required, Validators.maxLength(255)]);
+    renameFileInput = new FormControl('', [Validators.required, Validators.maxLength(255)]);
     isCreatingFolder: boolean;
     fileHasUploaded = false;
     fileIsUploading = false;
+    error: any;
+    highlightedFile: UploadedFile;
+    submittedRenameForm: boolean;
+    isUpdatingFIle: boolean;
 
     constructor(private authService: AuthService,
                 private userService: UserService,
@@ -54,6 +59,9 @@ export class HomeComponent implements OnInit, OnDestroy{
                             if (params.hasOwnProperty('id')) {
                                 this.loaded = false;
                                 this.folderId = Number(params.id);
+                            } else {
+                                this.folderId = null;
+                                this.folder = null;
                             }
                             if (this.folderId) {
                                 this.getUserFolder();
@@ -88,7 +96,7 @@ export class HomeComponent implements OnInit, OnDestroy{
         this.userService.getUserFiles(this.authUser.id).then(
             (response: any) => {
                 this.folder = null;
-                const files = response.data.data;
+                const files = response.data ?  response.data.data : [];
                 this.fillUserFiles(files);
                 this.getSectionLabels();
                 this.loaded = true;
@@ -106,26 +114,33 @@ export class HomeComponent implements OnInit, OnDestroy{
                 this.getSectionLabels();
                 this.loaded = true;
                 console.log(folder);
+            },
 
+            () => {
+                this.router.navigateByUrl('not-found', {skipLocationChange: true});
             }
         );
     }
 
+    getCreationDateHuman(creationDate: string): string {
+
+        return moment(creationDate).calendar(null, {
+            lastDay : '[Yesterday]',
+            sameDay : '[Today]',
+            nextDay : '[Tomorrow]',
+            lastWeek : '[last] dddd',
+            nextWeek : 'dddd',
+            sameElse : 'L'
+        });
+    }
+
     fillUserFiles(files: UploadedFile[]): void {
         files.forEach((file: UploadedFile) => {
-            file.hasUploaded = true;
-            file.pending = false;
-            file.isUploading = false;
-            file.isUploading = false;
-            file.isConfirmed = true;
-            file.creation_date_human = moment(file.creation_date).calendar(null, {
-                lastDay : '[Yesterday]',
-                sameDay : '[Today]',
-                nextDay : '[Tomorrow]',
-                lastWeek : '[last] dddd',
-                nextWeek : 'dddd',
-                sameElse : 'L'
-            });
+            file.hasUploaded = 1;
+            file.pending = 0;
+            file.isUploading = 0;
+            file.is_confirmed = 1;
+            file.creation_date_human = this.getCreationDateHuman(file.creation_date);
         });
         this.files = files;
     }
@@ -146,14 +161,64 @@ export class HomeComponent implements OnInit, OnDestroy{
 
         this.userService.createUserFolder(this.authUser.id, params).then(
             (folder: UploadedFile) => {
+                folder.creation_date_human = this.getCreationDateHuman(folder.creation_date);
                 this.isCreatingFolder = false;
-                folder.hasUploaded = true;
+                folder.hasUploaded = 1;
                 this.files.push(folder);
                 this.closeModal('modalNewFolder');
+
+                this.newFolderInput.setValue('');
+                this.error = null;
             },
 
-            () => {
+            (error: any) => {
+                console.log(error);
+
+                if (error.error.data && error.error.data.message) {
+                    this.error = error.error.data;
+                }
                 this.isCreatingFolder = false;
+                this.toastr.error('Sorry an error occurred. Try again later.');
+            }
+        );
+    }
+    updateFile(file: UploadedFile, data: any = {}): void {
+        this.submittedRenameForm = true;
+
+        if (this.renameFileInput.invalid) {
+            return;
+        }
+        this.isUpdatingFIle = true;
+
+        this.userService.updateUserFile(this.authUser.id, data).then(
+            (uploadedFile: UploadedFile) => {
+
+                this.files.forEach(
+                    (f: UploadedFile) => {
+                        if (f.id === uploadedFile.id) {
+                            f.name = uploadedFile.name;
+                            f.is_archived = uploadedFile.is_archived;
+                            f.is_trashed = uploadedFile.is_trashed;
+                        }
+                    }
+                );
+
+                this.closeModal('modalRenameFile');
+
+                this.renameFileInput.setValue('');
+                this.isUpdatingFIle = false;
+                this.highlightedFile = null;
+
+                this.error = null;
+            },
+
+            (error: any) => {
+                console.log(error);
+
+                if (error.error.data && error.error.data.message) {
+                    this.error = error.error.data;
+                }
+                this.isUpdatingFIle = false;
                 this.toastr.error('Sorry an error occurred. Try again later.');
             }
         );
@@ -171,19 +236,24 @@ export class HomeComponent implements OnInit, OnDestroy{
         }
     }
 
+    getTotalUploadingFiles(batch): number {
+        return this.getTotalFilesAt(batch) + this.getTotalFoldersAt(batch);
+    }
+
     getPercentageLoaded(batch): number {
         let percentage = 0;
-        let totalUploadingImages = 0;
 
-        this.getUploadingFiles(batch).forEach(
+        this.files.forEach(
             (file: UploadedFile) => {
-                if (file.pending) {
-                    totalUploadingImages++;
+                if (file.pending === 1 && file.batch === batch) {
+                    console.log(file.name, file.percentageLoaded);
                     percentage += file.percentageLoaded;
                 }
             }
         );
-        return  totalUploadingImages > 0 ? (percentage / totalUploadingImages) : 0;
+        console.log(percentage);
+        console.log(this.getTotalUploadingFiles(batch));
+        return this.getTotalUploadingFiles(batch) > 0 ? (percentage / this.getTotalUploadingFiles(batch)) : 0;
     }
 
     getDisplayUploadingFiles(): UploadedFile[] {
@@ -192,17 +262,9 @@ export class HomeComponent implements OnInit, OnDestroy{
 
         this.files.forEach(
             (uploadedFile: UploadedFile) => {
-                if (!batches.includes(uploadedFile.batch)) {
+                if ((uploadedFile.pending || uploadedFile.hasJustUploaded) && !batches.includes(uploadedFile.batch)) {
                     batches.push(uploadedFile.batch);
-                }
-            }
-        );
-
-        batches.forEach(
-            (batch: string) => {
-
-                if (this.getUploadingFileAt(batch)) {
-                    uploadingFiles.unshift(this.getUploadingFileAt(batch));
+                    uploadingFiles.unshift(uploadedFile);
                 }
             }
         );
@@ -210,10 +272,49 @@ export class HomeComponent implements OnInit, OnDestroy{
         return uploadingFiles;
     }
 
+    getTotalUploadedFiledAt(batch): number {
+        let total = 0;
+
+        this.files.forEach(
+            (file: UploadedFile) => {
+                if (file.batch === batch && file.hasJustUploaded) {
+                    total++;
+                }
+            }
+        );
+        return total;
+    }
+
+    getTotalFilesAt(batch): number {
+        let total = 0;
+
+        this.files.forEach(
+            (file: UploadedFile) => {
+                if (file.batch === batch) {
+                    total++;
+                }
+            }
+        );
+        return total;
+    }
+
+    getTotalFoldersAt(batch): number {
+        let total = 0;
+
+        this.files.forEach(
+            (file: UploadedFile) => {
+                if (file.is_folder && file.batch === batch) {
+                    total++;
+                }
+            }
+        );
+        return total;
+    }
+
     getUploadingElements(): UploadedFile[] {
         const uploadingFiles: UploadedFile[] = [];
 
-        this.getDisplayUploadingFiles().forEach(
+        this.files.forEach(
             (uploadedFile: UploadedFile) => {
 
                 if (uploadedFile.isUploading) {
@@ -228,135 +329,193 @@ export class HomeComponent implements OnInit, OnDestroy{
     getUploadInfo(): string {
         let uploadedElementsQty = 0;
 
+        const hasError = !!this.getDisplayUploadingFiles().find(
+            (file: UploadedFile) => {
+                return file.hasError;
+            }
+        );
+
+        if (hasError) {
+            let qty = 0;
+            this.getDisplayUploadingFiles().map(
+                (file: UploadedFile) => {
+
+                    if (file.hasError) {
+                        qty++;
+                    }
+                    return file.hasError;
+                }
+            );
+
+            return 'Failed to upload ' + qty + (qty > 1 ? ' elements' : ' element');
+        }
+
+
         if (this.fileIsUploading) {
             uploadedElementsQty = this.getUploadingElements().length;
-            return 'Uploading ' + uploadedElementsQty + (uploadedElementsQty > 1 ? ' elements' : 'element');
+            return 'Uploading ' + uploadedElementsQty + (uploadedElementsQty > 1 ? ' elements' : ' element');
         }
 
         if (this.fileHasUploaded) {
             uploadedElementsQty = this.getDisplayUploadingFiles().length;
-
-            return 'Uploaded ' + uploadedElementsQty + (uploadedElementsQty > 1 ? ' elements' : 'element');
+            return 'Uploaded ' + uploadedElementsQty + (uploadedElementsQty > 1 ? ' elements' : ' element');
         }
 
         return null;
 
     }
 
-    uploadFiles(batch, i): void {
-
-        this.files.forEach(
-            (file: UploadedFile, j) => {
-                console.log(batch, file, i, j);
-                console.log(file.batch && Number(file.batch) === batch && file.pending && !file.hasUploaded && i === j);
-
-                if (file.batch && file.batch.toString() == batch.toString() && file.pending && !file.hasUploaded && i === j) {
-                    console.log('file', file);
-                    file.isUploading = true;
-                    const formData = new FormData();
-                    formData.append('folder_id', file.folder_id ? file.folder_id.toString() : null);
-                    formData.append('is_folder', file.is_folder.toString());
-                    formData.append('name', file.name);
-                    formData.append('file', file.file);
-                    formData.append('folderCode', file.folderCode);
-                    formData.append('code', file.code);
-                    formData.append('batch', file.batch);
-                    formData.append('originalType', file.originalType);
-                    formData.append('relativePath', file.webkitRelativePath);
-
-                    this.authService.getHeaders().then(
-                        (headers: HttpHeaders) => {
-                            const req = new HttpRequest(
-                                'POST',
-                                this.authService.baseUri + 'users/' + this.authUser.id + '/files',
-                                formData, {
-                                    headers,
-                                    reportProgress: true
-                                });
-
-                            this.httpClient.request(req).subscribe(
-                                event => {
-                                    if (event.type === HttpEventType.UploadProgress) {
-                                        file.percentageLoaded = Math.round(100 * event.loaded / event.total);
-                                    } else if (event instanceof HttpResponse) {
-                                        const uploadedFile: UploadedFile = (event.body as UploadedFile);
-                                        file.id = uploadedFile.id;
-                                        file.path = uploadedFile.path;
-                                        file.link = uploadedFile.link;
-                                        file.isUploading = false;
-                                        file.hasUploaded = true;
-                                        file.hasJustUploaded = true;
-
-                                        i++;
-                                        this.uploadFiles(batch, i);
-                                    }
-                                },
-                                error => {
-                                    file.hasError = true;
-                                    file.percentageLoaded = 0;
-                                    file.pending = false;
-                                }
-                            );
-                        }
-                    );
-                }else {
-                    i++;
-                    this.uploadFiles(batch, i);
-                }
-                if (i === this.files.length - 1) {
-                    this.authService.post('confirm', {user_id: this.authUser.id, batch}).then(
-                        (uploadedFiles: UploadedFile[]) => {
-                            uploadedFiles.forEach(
-                                (k: UploadedFile) => {
-                                    this.files.forEach(
-                                        (l: UploadedFile) => {
-                                            if (l.code === k.code) {
-                                                l.pending = false;
-                                                l.id = k.id;
-                                                l.creation_date = k.creation_date;
-                                                l.created_at = k.updated_at;
-                                                l.updated_at = k.created_at;
-                                                l.consulted_at = k.consulted_at;
-                                                l.isCompleted = true;
-                                                l.isConfirmed = true;
-                                                this.fileIsUploading = false;
-                                                this.fileHasUploaded = true;
-
-                                            }
-                                        }
-                                    );
-                                }
-                            );
-                        }
-                    );
-                }
-            }
-        );
-    }
-
-    getUploadingFileAt(batch): UploadedFile {
-        return this.getUploadingFiles(batch)[0];
-    }
-
-    getUploadingFiles(batch): UploadedFile[] {
-        const files: UploadedFile[] = [];
-
-        this.files.forEach(
+    getNextPendingFile(): UploadedFile {
+        return this.files.find(
             (file: UploadedFile) => {
-                if (file.batch === batch && (file.isUploading || file.pending || file.hasJustUploaded)) {
-                    files.push(file);
-                }
+                return !file.isUploading && file.pending && !file.hasUploaded && !file.hasError;
             }
         );
-
-        return files;
     }
 
-    findOrCreateFolder(folderName: string, batch: string, scale: number): UploadedFile {
+
+    uploadFiles(file: UploadedFile, folder: UploadedFile = null, isFolderImport: boolean = false): void {
+        file.isUploading = 1;
+        const formData = new FormData();
+        let folderId: string = null;
+
+        console.log(isFolderImport && folder && file.batch === folder.batch );
+        console.log(isFolderImport);
+        console.log(folder);
+
+        if (isFolderImport && folder && file.batch === folder.batch ) {
+
+            if (file.is_folder && file.scale === 0 && this.folderId) {
+                folderId = this.folderId.toString();
+            } else {
+                folderId = folder ? folder.id.toString() : null;
+            }
+        } else if (this.folderId) {
+            folderId = this.folderId.toString();
+        }
+
+        if (folderId) {
+            formData.append('folder_id', folderId);
+            file.folder_id = Number(folderId);
+        }
+
+        formData.append('is_folder', file.is_folder.toString());
+        formData.append('name', file.name);
+        formData.append('code', file.code);
+        formData.append('batch', file.batch);
+
+        if (file.folderCode) {
+            formData.append('folderCode', file.folderCode);
+        }
+
+        if (!file.is_folder) {
+            formData.append('file', file.file);
+            formData.append('original_type', file.originalType);
+            formData.append('relativePath', file.webkitRelativePath);
+        }
+
+
+        this.authService.getHeaders().then(
+            (headers: HttpHeaders) => {
+                const req = new HttpRequest(
+                    'POST',
+                    this.authService.baseUri + 'users/' + this.authUser.id + '/files',
+                    formData, {
+                        headers,
+                        reportProgress: true
+                    });
+
+                this.httpClient.request(req).subscribe(
+                    event => {
+                        if (event.type === HttpEventType.UploadProgress) {
+                            file.percentageLoaded = Math.round(100 * event.loaded / event.total);
+                        } else if (event instanceof HttpResponse) {
+                            const uploadedFile: UploadedFile = (event.body as UploadedFile);
+                            file.id = uploadedFile.id;
+                            file.path = uploadedFile.path;
+                            file.link = uploadedFile.link;
+                            file.creation_date = uploadedFile.creation_date;
+                            file.creation_date_human = this.getCreationDateHuman(uploadedFile.creation_date);
+                            file.created_at = uploadedFile.updated_at;
+                            file.updated_at = uploadedFile.created_at;
+                            file.display_size = uploadedFile.display_size;
+                            file.size = uploadedFile.size;
+                            file.consulted_at = uploadedFile.consulted_at;
+                            file.type = uploadedFile.type;
+                            file.isUploading = 0;
+                            file.hasUploaded = 1;
+                            file.hasJustUploaded = 1;
+
+                            if (this.getNextPendingFile() && this.getNextPendingFile().scale !== file.scale &&
+                                this.getNextPendingFile().is_folder && file.is_folder) {
+                                folder = file;
+                            } else if (this.getNextPendingFile() && !this.getNextPendingFile().is_folder && file.is_folder) {
+                                folder = file;
+                            }
+
+                            if (this.getNextPendingFile()) {
+                                this.uploadFiles(this.getNextPendingFile(), folder, isFolderImport);
+                            } else {
+                                const displayedFilesQty = this.getDisplayUploadingFiles().length - 1;
+
+                                console.log(displayedFilesQty);
+
+                                this.getDisplayUploadingFiles().forEach(
+                                    (displayedFile: UploadedFile, i) => {
+
+                                        if (displayedFile.hasUploaded && displayedFile.pending) {
+
+                                            this.authService.post('confirm', {user_id: this.authUser.id, batch: displayedFile.batch}).then(
+                                                (response) => {
+                                                    this.files.forEach(
+                                                        (l: UploadedFile) => {
+                                                            if (l.batch === displayedFile.batch) {
+                                                                l.pending = 0;
+                                                                l.isCompleted = 1;
+                                                                l.is_confirmed = 1;
+                                                                l.hasJustUploaded = 1;
+                                                                this.fileIsUploading = false;
+                                                                this.fileHasUploaded = true;
+                                                            }
+                                                            if (i === displayedFilesQty) {
+                                                                this.fileIsUploading = false;
+                                                                this.fileHasUploaded = true;
+                                                            }
+                                                        }
+                                                    );
+                                                }
+                                            );
+                                        }
+                                    }
+                                );
+                            }
+
+                        }
+                    },
+                    error => {
+                        file.hasError = 1;
+                        file.percentageLoaded = 0;
+                        file.hasUploaded = 0;
+                        file.isUploading = 0;
+                        if (this.getNextPendingFile()) {
+                            this.uploadFiles(this.getNextPendingFile(), folder, isFolderImport);
+                        } else {
+                            this.fileIsUploading = false;
+                            this.fileHasUploaded = true;
+                        }
+                    }
+                );
+            }
+        );
+    }
+
+
+    findOrCreateFolder(folderName: string, scale: number, batch: string  ): UploadedFile {
 
         let folder = this.files.find(
             (uploadedFile: UploadedFile) => {
-                return uploadedFile.is_folder && uploadedFile.batch === batch && uploadedFile.scale === scale;
+                return  uploadedFile.is_folder && uploadedFile.batch === batch &&
+                    uploadedFile.scale === scale && uploadedFile.name === folderName;
             }
         );
 
@@ -365,24 +524,23 @@ export class HomeComponent implements OnInit, OnDestroy{
         }
 
         folder = {
-            isUploading: false,
-            hasUploaded: false,
-            isDeleting: false,
+            isUploading: 0,
+            hasUploaded: 0,
+            isDeleting: 0,
             percentageLoaded: 0,
-            pending: true,
+            pending: 1,
             name: folderName,
             type: 'folder',
-            isCompleted: false,
-            isConfirmed: false,
+            isCompleted: 0,
+            is_confirmed: 0,
             link: null,
-            hasError: false,
-            hasJustUploaded: false,
-            is_folder: false,
+            hasError: 0,
+            hasJustUploaded: 0,
+            is_folder: 1,
             batch,
             file: null,
             code: Date.now().toString(),
             scale,
-            folder_id: scale === 0 ? this.folderId : null
         };
 
         this.files.push(folder);
@@ -393,19 +551,19 @@ export class HomeComponent implements OnInit, OnDestroy{
 
     createNewFile(file: any, extras: {batch: string, scale: number, folderCode: string}): void {
         const uploadedFile: UploadedFile = {
-            isUploading: false,
-            hasUploaded: false,
-            isDeleting: false,
+            isUploading: 0,
+            hasUploaded: 0,
+            isDeleting: 0,
             percentageLoaded: 0,
-            pending: true,
+            pending: 1,
             name: file.name,
             originalType: file.type,
-            isCompleted: false,
-            isConfirmed: false,
+            isCompleted: 0,
+            is_confirmed: 0,
             link: null,
-            hasError: false,
-            hasJustUploaded: false,
-            is_folder: false,
+            hasError: 0,
+            hasJustUploaded: 0,
+            is_folder: 0,
             batch: extras.batch,
             file,
             code: Date.now().toString(),
@@ -421,12 +579,22 @@ export class HomeComponent implements OnInit, OnDestroy{
 
     detectFile(event): void {
         const files: any = event.target.files;
-        const batch = Date.now().toString();
+        const isFolderImport = event.target.id === 'upload-folder-input';
+        let batch = Date.now().toString();
         console.log(files);
         this.checkImages(files).then(
             () => {
+                this.fileIsLoading = true;
+
                 Array.from(files).forEach((file: any, i) => {
-                    const currentFilesName: any = file.webkitRelativePath.toString().split('/');
+
+                    const currentFilesName: any = file.webkitRelativePath ? file.webkitRelativePath.toString().split('/') : [];
+                    console.log(currentFilesName);
+
+                    if (currentFilesName.length === 0) {
+                        batch = Date.now().toString();
+                    }
+
                     const fileExtras = {
                         batch,
                         scale: 0,
@@ -436,29 +604,29 @@ export class HomeComponent implements OnInit, OnDestroy{
 
                     currentFilesName.forEach(
                         (currentFile: string, j) => {
-
-                            if (i < currentFilesName.length - 1) {
-                                const folder = this.findOrCreateFolder(currentFile, batch, j);
-
-                                console.log(folder);
+                            if (j < currentFilesName.length - 1) {
+                                const folder = this.findOrCreateFolder(currentFile, j, batch);
 
                                 fileExtras.folderCode = folder.code;
                                 fileExtras.scale = j + 1;
                             }
 
+                            if (j === currentFilesName.length - 1) {
+                                this.createNewFile(file, fileExtras);
+
+                            }
                         }
                     );
-                    this.createNewFile(file, fileExtras);
-
                     if (i === files.length - 1) {
-                        this.fileIsUploading = true;
-                        this.uploadFiles(batch, 0);
+
                         console.log(this.files);
+                        this.fileIsLoading = false;
+                        this.fileIsUploading = true;
+                        this.fileHasUploaded = false;
+                        this.uploadFiles(this.getNextPendingFile(), this.folder, isFolderImport);
                     }
 
                 });
-
-
 
             },
             reject => {
@@ -532,9 +700,9 @@ export class HomeComponent implements OnInit, OnDestroy{
 
     isCurrentFolderFile(file: UploadedFile): boolean {
         if (this.folderId) {
-            return file.folder_id === this.folderId && file.isConfirmed;
+            return file.folder_id === this.folderId && file.is_confirmed === 1;
         }
-        return !file.folder_id && file.isConfirmed;
+        return !file.folder_id && file.is_confirmed === 1;
     }
 
     getSectionLabels(): any {
@@ -576,14 +744,17 @@ export class HomeComponent implements OnInit, OnDestroy{
         return files;
     }
 
-    getFileIconClass(file: any): string {
+    getFileIconClass(file: UploadedFile): string {
         switch (file.type) {
             case 'pdf':
                 return 'fa fa-file-pdf-o';
             case 'png':
                 return 'fa fa-file-image-o';
-
+            case 'jpeg':
+                return 'fa fa-file-image-o';
             case 'xlsx':
+                return 'fa fa-file-excel-o';
+            case 'xls':
                 return 'fa fa-file-excel-o';
             case 'docx':
                 return 'fa fa-file-word-o';
