@@ -490,11 +490,13 @@ export class HomeComponent implements OnInit, OnDestroy{
                               if (i === displayedFilesQty) {
                                 this.fileIsUploading = false;
                                 this.fileHasUploaded = true;
-                                this.fileIsFinalizing = false;
+                               
                               }
 
                             }
                           );
+						  
+						   this.fileIsFinalizing = false;
                         }
                       );
                     }
@@ -802,7 +804,11 @@ export class HomeComponent implements OnInit, OnDestroy{
       case 'docx':
         return 'fa fa-file-word-o';
       case 'mp4':
-        return 'fa fa-file-word-o';
+        return 'fa fa-music';
+	  case 'mp3':
+        return 'fa fa-music';
+	  case 'mpga':
+        return 'fa fa-music';
       case 'folder':
         return 'fa fa-folder-o';
       default:
