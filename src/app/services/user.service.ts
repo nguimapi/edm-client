@@ -8,12 +8,14 @@ export class UserService {
 
     constructor(private authService: AuthService) {}
 
-    createUserFolder(userId: number, params: {name: string, folder_id: number}): any {
+    createUserFolder(userId: number, params: any): any {
+
         return this.authService.post('users/' + userId + '/folders', params);
     }
 
-    updateUserFile(userId: number, params: any = {}): any {
-        return this.authService.post('users/' + userId + '/folders', params);
+    updateUserFile(userId: number, fileId: any, params: any = {}): any {
+		params._method = 'PUT';
+        return this.authService.post('users/' + userId + '/files/' + fileId, params);
     }
 
     getUserFiles(userId: number): any {
