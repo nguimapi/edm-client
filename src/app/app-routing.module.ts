@@ -8,12 +8,13 @@ import {AuthGuardService} from './services/auth-guard.service';
 
 export const routes: Routes = [
   {path: '', children: [
-      { path: '', redirectTo: 'app', pathMatch: 'full'},
+      { path: '', redirectTo: 'app/home', pathMatch: 'full'},
       { path: 'login', component: LoginComponent, canActivate: [AnonymousGuardService]},
       {path: 'app', component: AppOneComponent, canActivate: [AuthGuardService],
 
         children: [
-          { path: '', component: HomeComponent },
+          { path: '', redirectTo: 'home', pathMatch: 'full'},
+          { path: ':path', component: HomeComponent },
           { path: ':path/:id', component: HomeComponent },
         ]
       },

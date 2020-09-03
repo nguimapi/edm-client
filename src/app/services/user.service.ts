@@ -18,8 +18,8 @@ export class UserService {
         return this.authService.post('users/' + userId + '/files/' + fileId, params);
     }
 
-    getUserFiles(userId: number): any {
-        return this.authService.get('users/' + userId + '/files');
+    getUserFiles(userId: number, params: any = {}): any {
+        return this.authService.get('users/' + userId + '/files', params);
     }
 
     getUserFolder(userId: number, folderId: number): any {

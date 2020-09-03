@@ -32,9 +32,9 @@
             </div>
         </div>
         <div *ngIf="loaded" class="col-lg-12">
-
+			<p *ngIf="getSectionLabels().length === 0">No File founded</p>
             <ng-container *ngFor="let date of getSectionLabels(); let i = index">
-                <label class="section-label" [class.mg-t-25]="i > 0">{{date}}</label>
+                <label *ngIf="!path || path === 'home' || path === 'folders'" class="section-label" [class.mg-t-25]="i > 0">{{date}}</label>
                 <div class="file-group">
                     <div *ngFor="let file of getFilesAt(date)" class="file-item" (dblclick)="open(file)">
                         <div class="row no-gutters wd-100p">
@@ -49,14 +49,22 @@
                                 <div class="dropdown dropdown-item-1">
                                     <a data-toggle="dropdown" href=""><i class="icon ion-more"></i></a>
                                     <div class="dropdown-menu wd-200 pd-5">
-                                        <nav class="nav dropdown-nav">
+                                        <nav *ngIf="!path || path === 'home' || path === 'folders'" class="nav dropdown-nav">
                                             <a (click)="$event.preventDefault(); open(file)" href="" class="nav-link"><i class="icon ion-ios-eye"></i>Open</a>
-                                            <a id="file.link" download="{{file.name}}" href="" class="nav-link"><i class="icon ion-ios-download"></i>Download</a>
+                                            <a href="" class="nav-link"><i class="icon ion-ios-download"></i>Download</a>
                                             <a href="" class="nav-link"><i class="icon ion-android-exit"></i> Move</a>
                                             <a (click)="highlightedFile = file; renameFileInput.setValue(highlightedFile.name)" data-toggle="modal" data-target="#modalRenameFile" href="#" class="nav-link"><i class="icon ion-edit"></i>Rename</a>
-                                            <a href="" class="nav-link"><i class="icon ion-archive"></i>Archive</a>
-                                            <a href="" class="nav-link"><i class="icon ion-ios-trash"></i>Delete</a>
-                                        </nav>
+                                            <a (click)="$event.preventDefault();archiveFile(file)" href="" class="nav-link"><i class="icon ion-archive"></i>Archive</a>
+                                            <a (click)="$event.preventDefault();deleteFile(file)" href="" class="nav-link"><i class="icon ion-ios-trash"></i>Delete</a>
+                                        </nav> 
+										
+										<nav *ngIf="path === 'trash' || path === 'archives'" class="nav dropdown-nav">
+                                            <a *ngIf="path === 'trash'" (click)="$event.preventDefault();restoreDeletedFile(file)" href="" class="nav-link"><i class="icon ion-archive"></i>Restore</a>
+                                            <a *ngIf="path === 'archives'" (click)="$event.preventDefault();restoreArchivedFile(file)" href="" class="nav-link"><i class="icon ion-archive"></i>Restore</a>
+                                            <a *ngIf="path === 'trash'" (click)="$event.preventDefault();deleteFilePermanently(file)" href="" class="nav-link"><i class="icon ion-ios-trash"></i>Delete</a>
+                                           <a *ngIf="path === 'archives'" (click)="$event.preventDefault();deleteFile(file)" href="" class="nav-link"><i class="icon ion-ios-trash"></i>Delete</a>
+
+									   </nav>
                                     </div><!-- dropdown-menu -->
                                 </div><!-- dropdown -->
 
@@ -87,7 +95,7 @@
        hidden
        (change)="detectFile($event)"/>
 
-<div *ngIf="fileIsUploading || fileHasUploaded" class="col-md-3 upload-progress-section show" id="upload-progress-section">
+<div [class.show]="(fileIsUploading() || fileHasUploaded()) && !hasCloseUploadingPopup"  class="col-md-3 upload-progress-section" id="upload-progress-section">
     <div class="card bd-0">
         <div class="card-header bg-primary bd-0 d-flex align-items-center justify-content-between pd-y-5">
             <h6 class="mg-b-0 tx-14 tx-white tx-normal">{{getUploadInfo()}}</h6>
@@ -95,7 +103,7 @@
                 <a [ngClass]="{'ion-ios-arrow-down': isUploadProgressOpen(), 'ion-ios-arrow-up': !isUploadProgressOpen()}"
                    (click)="$event.preventDefault(); toggleUploadProgress()"
                    href="" class="tx-white-8 hover-white mg-l-10"><i class="icon"></i></a>
-                <a *ngIf="!fileIsUploading" (click)="$event.preventDefault(); closeUploadProgressSection()" href="" class="tx-white-8 hover-white mg-l-10"><i class="icon ion-ios-close-empty"></i></a>
+                <a *ngIf="!fileIsUploading()" (click)="$event.preventDefault(); closeUploadProgressSection()" href="" class="tx-white-8 hover-white mg-l-10"><i class="icon ion-ios-close-empty"></i></a>
             </div><!-- card-option -->
         </div><!-- card-header -->
         <div id="upload-progress" class="card-body bd bd-t-0 rounded-bottom-0 pd-0-force upload-progress show">
@@ -188,7 +196,7 @@
                 </div><!-- row -->
             </div>
             <div class="modal-footer justify-content-center">
-                <button [disabled]="isUpdatingFIle" (click)="updateFile(highlightedFile, {name: renameFileInput.value})" type="button" class="btn btn-primary">Rename</button>
+                <button [disabled]="isUpdatingFIle" (click)="renameFile(highlightedFile)" type="button" class="btn btn-primary">Rename</button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
             </div>
         </div>

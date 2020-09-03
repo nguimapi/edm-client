@@ -22,6 +22,7 @@ export class HomeComponent implements OnInit, OnDestroy{
   files: UploadedFile[] = [];
   loaded: boolean;
   folderId: number = null;
+  path: string;
   folder: UploadedFile;
   submittedFolderForm: boolean;
   maxFileSize = 200;
@@ -30,13 +31,12 @@ export class HomeComponent implements OnInit, OnDestroy{
   newFolderInput = new FormControl('', [Validators.required, Validators.maxLength(255)]);
   renameFileInput = new FormControl('', [Validators.required, Validators.maxLength(255)]);
   isCreatingFolder: boolean;
-  fileHasUploaded = false;
-  fileIsUploading = false;
   fileIsFinalizing = false;
   error: any;
   highlightedFile: UploadedFile;
   submittedRenameForm: boolean;
   isUpdatingFIle: boolean;
+  hasCloseUploadingPopup: boolean;
 
   constructor(private authService: AuthService,
               private userService: UserService,
@@ -48,6 +48,22 @@ export class HomeComponent implements OnInit, OnDestroy{
     this.title.setTitle('Home - Edm');
 
   }
+  
+  fileIsUploading(): boolean {
+	  return !!this.files.find(
+		(file: UploadedFile) => {
+			return file.pending;
+		}
+	  );
+  }
+  
+  fileHasUploaded(): boolean {
+	  return !!this.files.find(
+		(file: UploadedFile) => {
+			return file.hasJustUploaded;
+		}
+	  );
+  }
 
   ngOnInit(): void {
     this.userSubscription = this.authService.userSubject.subscribe(
@@ -57,18 +73,39 @@ export class HomeComponent implements OnInit, OnDestroy{
         if (authUser) {
           this.route.params.subscribe(
             (params: Params) => {
-              if (params.hasOwnProperty('id')) {
-                this.loaded = false;
-                this.folderId = Number(params.id);
-              } else {
-                this.folderId = null;
-                this.folder = null;
-              }
-              if (this.folderId) {
-                this.getUserFolder();
-              } else {
-                this.getUserFiles();
-              }
+				
+				if (params.hasOwnProperty('path')) {
+					this.loaded = false;
+
+					this.path = params.path;
+					
+					if (params.hasOwnProperty('id')) {
+                     this.folderId = Number(params.id);
+                    } else {
+                      this.folderId = null;
+                     this.folder = null;
+                    }
+					
+					if (this.path === 'folders' && !this.folderId) {
+					  this.getUserFolders();
+					} else if (this.path === 'trash') {
+						
+					 this.getUserTrash();
+
+					} else if (this.path === 'archives') {
+						
+						 this.getUserArchives();
+					} else if (this.folderId){
+						
+					  this.getUserFolder();
+
+					}else {
+						
+			          this.getUserFiles();
+			       } 
+					
+				}
+              
             }
           );
         }
@@ -77,7 +114,7 @@ export class HomeComponent implements OnInit, OnDestroy{
 
     this.authService.emitUser();
   }
-
+  
   isUploadProgressOpen(): boolean {
     return document.getElementById('upload-progress').classList.contains('show');
   }
@@ -87,24 +124,61 @@ export class HomeComponent implements OnInit, OnDestroy{
   }
 
   closeUploadProgressSection(): void {
-    this.fileIsUploading = false;
-    this.fileHasUploaded = false;
-    document.getElementById('upload-progress-section').style.setProperty('display', 'none');
+    if (!this.fileIsUploading()) {
+		document.getElementById('upload-progress-section').style.setProperty('display', 'none');
+		this.hasCloseUploadingPopup = true;
+	}
 
   }
 
   getUserFiles(): void {
-    this.userService.getUserFiles(this.authUser.id).then(
+    this.userService.getUserFiles(this.authUser.id, {is_confirmed: 1, is_root_file: true}).then(
       (response: any) => {
         this.folder = null;
         const files = response.data ?  response.data.data : [];
         this.fillUserFiles(files);
         this.getSectionLabels();
         this.loaded = true;
-        console.log(response);
       }
     );
   }
+  
+  getUserFolders(): void {
+    this.userService.getUserFiles(this.authUser.id, {is_confirmed: 1,is_folder: 1}).then(
+      (response: any) => {
+        this.folder = null;
+        const files = response.data ?  response.data.data : [];
+        this.fillUserFiles(files);
+		this.title.setTitle('Folders - Edm');
+        this.loaded = true;
+      }
+    );
+  }
+  
+  getUserTrash(): void {
+    this.userService.getUserFiles(this.authUser.id, {is_confirmed: 1,is_trashed: 1}).then(
+      (response: any) => {
+        this.folder = null;
+        const files = response.data ?  response.data.data : [];
+        this.fillUserFiles(files);
+		this.title.setTitle('Trash - Edm');
+        this.loaded = true;
+      }
+    );
+  }
+  
+  getUserArchives(): void {
+    this.userService.getUserFiles(this.authUser.id, {is_confirmed: 1,is_archived: 1}).then(
+      (response: any) => {
+        this.folder = null;
+        const files = response.data ?  response.data.data : [];
+        this.fillUserFiles(files);
+		this.title.setTitle('Archives - Edm');
+        this.loaded = true;
+      }
+    );
+  }
+  
   getUserFolder(): void {
     this.userService.getUserFolder(this.authUser.id, this.folderId).then(
       (folder: UploadedFile) => {
@@ -114,11 +188,14 @@ export class HomeComponent implements OnInit, OnDestroy{
         this.folder.code = this.makeId(13);
         this.folder.batch = this.makeId(13);
         this.folder.scale = -1;
-        this.files.push(folder);
+		
+		if (!this.hasFile(folder.id)) {
+		 
+		    this.files.push(folder);
+	    }
+       
         this.title.setTitle(folder.name + ' - Edm');
-        this.getSectionLabels();
         this.loaded = true;
-        console.log(folder);
       },
 
       () => {
@@ -138,6 +215,17 @@ export class HomeComponent implements OnInit, OnDestroy{
       sameElse : 'L'
     });
   }
+  
+  hasFile(id: any): boolean {
+	  
+	  return !!this.files.find(
+	  
+	    (file: UploadedFile) =>  {
+			
+			return file.id == id;
+		}
+	  )
+  }
 
   fillUserFiles(files: UploadedFile[]): void {
     files.forEach((file: UploadedFile) => {
@@ -149,8 +237,12 @@ export class HomeComponent implements OnInit, OnDestroy{
       file.code = this.makeId(13);
       file.batch = this.makeId(13);
       file.creation_date_human = this.getCreationDateHuman(file.creation_date);
+	  if (!this.hasFile(file.id)) {
+		 
+		this.files.push(file);
+	  }
+	  
     });
-    this.files = files;
   }
 
   createFolder(): void {
@@ -190,26 +282,36 @@ export class HomeComponent implements OnInit, OnDestroy{
       }
     );
   }
-  updateFile(file: UploadedFile, data: any = {}): void {
+  
+  removeFile(id): void {
+	  
+	  const indexToRemove = this.files.findIndex(
+	  
+	    (file: UploadedFile)  => {
+			
+			return file.id == id;
+		}
+	  )
+	  
+	  this.files.splice(indexToRemove, 1);
+  }
+  
+  renameFile(file: UploadedFile): void{
+	 if (!file.is_folder) {
+		this.submittedRenameForm = true;
+	
+	    if (this.renameFileInput.invalid) {
+          return;
+        }
 
-    if (!file.is_folder) {
-      this.submittedRenameForm = true;
-
-      if (this.renameFileInput.invalid) {
-        return;
-      }
-      this.isUpdatingFIle = true;
-
-      this.userService.updateUserFile(this.authUser.id, file.id, data).then(
-        (uploadedFile: UploadedFile) => {
-
-          this.files.forEach(
-            (f: UploadedFile) => {
-              if (f.id === uploadedFile.id) {
-                f.name = uploadedFile.name;
-                f.is_archived = uploadedFile.is_archived;
-                f.is_trashed = uploadedFile.is_trashed;
-              }
+		this.updateFile(file, {name: this.renameFileInput.value}).then(
+		 (uploadedFile: UploadedFile) => {
+				
+		    this.files.forEach(
+              (f: UploadedFile) => {
+                if (f.id === uploadedFile.id) {
+                  f.name = uploadedFile.name;
+                }
             }
           );
 
@@ -220,22 +322,93 @@ export class HomeComponent implements OnInit, OnDestroy{
           this.highlightedFile = null;
 
           this.error = null;
-        },
+				
+		}
+		);	  
+     }  
+  }
+  
+  archiveFile(file: UploadedFile): void{
+	  this.updateFile(file, {is_archived: 1}).then(
+	    (f: UploadedFile) => {
+		    if (f.id === file.id && f.is_archived) {
+                this.removeFile(f.id);
+            }
+		}
+        );
+  }
+  
+  deleteFile(file: UploadedFile): void{
+	  this.updateFile(file, {is_trashed: 1}).then(
+	    (f: UploadedFile) => {
+		    if (f.id === file.id && f.is_trashed) {
+                this.removeFile(f.id);
+            }
+		}
+        );
+	  
+  }
+  
+  deleteFilePermanently(file: UploadedFile): void{
+	  this.updateFile(file, {is_trashed: 1}).then(
+	    (f: UploadedFile) => {
+		    if (f.id === file.id && f.is_trashed) {
+                this.removeFile(f.id);
+            }
+		}
+        );
+	  
+  }
+  
+  restoreDeletedFile(file: UploadedFile): void{
+	  this.updateFile(file, {is_trashed: 0}).then(
+	    (f: UploadedFile) => {
+		    if (f.id === file.id && !f.is_trashed && this.path === 'trash') {
+                this.removeFile(f.id);
+            }
+		}
+        );
+	  
+  }
+  
+  restoreArchivedFile(file: UploadedFile): void{
+	  this.updateFile(file, {is_trashed: 0}).then(
+	    (f: UploadedFile) => {
+		    if (f.id === file.id && !f.is_archived && this.path === 'archives') {
+                this.removeFile(f.id);
+            }
+		}
+        );
+	
+  }
+  
+  updateFile(file: UploadedFile, data: any = {}): any {
 
-        (error: any) => {
-          console.log(error);
+      this.isUpdatingFIle = true;
 
-          if (error.error.data && error.error.data.message) {
-            this.error = error.error.data;
-          }
-          this.isUpdatingFIle = false;
-          this.toastr.error('Sorry an error occurred. Try again later.');
-        }
-      );
+	  return new Promise<UploadedFile>(
+	  
+	    (resolve, reject) => {
+			
+		  this.userService.updateUserFile(this.authUser.id, file.id, data).then(
+           (uploadedFile: UploadedFile) => {
+			
+		      resolve(uploadedFile);
+           },
 
-    }
-
-
+           (error: any) => {
+          
+              if (error.error.data && error.error.data.message) {
+                this.error = error.error.data;
+              }
+              this.isUpdatingFIle = false;
+              this.toastr.error('Sorry an error occurred. Try again later.');
+		      reject(error);
+            } 
+           );
+			
+		}
+	  );
   }
 
   closeModal(id): void {
@@ -369,12 +542,12 @@ export class HomeComponent implements OnInit, OnDestroy{
     }
 
 
-    if (this.fileIsUploading) {
+    if (this.fileIsUploading()) {
       uploadedElementsQty = this.getUploadingElements().length;
       return 'Uploading ' + uploadedElementsQty + (uploadedElementsQty > 1 ? ' elements...' : ' element...');
     }
 
-    if (this.fileHasUploaded) {
+    if (this.fileHasUploaded()) {
       uploadedElementsQty = this.getDisplayUploadingFiles().length;
       return 'Uploaded ' + uploadedElementsQty + (uploadedElementsQty > 1 ? ' elements' : ' element');
     }
@@ -484,15 +657,9 @@ export class HomeComponent implements OnInit, OnDestroy{
                                 l.isCompleted = 1;
                                 l.is_confirmed = 1;
                                 l.hasJustUploaded = 1;
-                                this.fileIsUploading = false;
-                                this.fileHasUploaded = true;
+                          
                               }
-                              if (i === displayedFilesQty) {
-                                this.fileIsUploading = false;
-                                this.fileHasUploaded = true;
-                               
-                              }
-
+                     
                             }
                           );
 						  
@@ -513,10 +680,7 @@ export class HomeComponent implements OnInit, OnDestroy{
             file.isUploading = 0;
             if (this.getNextPendingFile()) {
               this.uploadFiles(this.getNextPendingFile());
-            } else {
-              this.fileIsUploading = false;
-              this.fileHasUploaded = true;
-            }
+            } 
           }
         );
       }
@@ -627,8 +791,7 @@ export class HomeComponent implements OnInit, OnDestroy{
   sendFiles(): void {
     console.log(this.files);
     this.fileIsLoading = false;
-    this.fileIsUploading = true;
-    this.fileHasUploaded = false;
+    this.hasCloseUploadingPopup = false;
     this.uploadFiles(this.getNextPendingFile());
 
   }
@@ -742,19 +905,51 @@ export class HomeComponent implements OnInit, OnDestroy{
       this.router.navigate(['/app/folders/' + file.id]);
     }
   }
+  
+  isCurrentPathFile(file: UploadedFile): boolean {
+	  
+	  
+	  if (!this.path || this.path === 'folders' || this.path === 'home') {
+		  
+		  if (this.path === 'folders' && !this.folderId) {
+			  
+			  return !file.is_trashed && !file.is_archived && !!file.is_folder;
+		  }
+		  
+		  
+		  return !file.is_trashed && !file.is_archived
+	  }
+	  
+	  if (this.path === 'archives') {
+		  
+		  return !!file.is_archived;
+	  }
+	  
+	  if (this.path === 'trash') {
+		  
+		  return !!file.is_trashed;
+	  }
+  }
 
   isCurrentFolderFile(file: UploadedFile): boolean {
     if (this.folderId) {
       return file.folder_id === this.folderId && file.is_confirmed === 1;
     }
-    return !file.folder_id && file.is_confirmed === 1;
+	
+	if (!this.path || this.path === 'home' || this.path === 'folders') {
+	
+	   return !file.folder_id && file.is_confirmed === 1;
+	}
+	
+	return file.is_confirmed === 1;
+    
   }
 
   getSectionLabels(): any {
     const labels: any = [];
     this.files.forEach(
       (file: UploadedFile) => {
-        if (this.isCurrentFolderFile(file) && !labels.includes(file.creation_date_human)) {
+        if (this.isCurrentFolderFile(file) && this.isCurrentPathFile(file) && !labels.includes(file.creation_date_human)) {
           labels.push(file.creation_date_human);
         }
       }
@@ -768,7 +963,7 @@ export class HomeComponent implements OnInit, OnDestroy{
     const folders: UploadedFile[] = [];
     this.files.map(
       (file: UploadedFile) => {
-        if (file.creation_date_human === creationDateHuman && this.isCurrentFolderFile(file)) {
+        if (file.creation_date_human === creationDateHuman && this.isCurrentFolderFile(file) && this.isCurrentPathFile(file)) {
           if (file.is_folder) {
             folders.push(file);
           } else {
@@ -818,6 +1013,23 @@ export class HomeComponent implements OnInit, OnDestroy{
 
 
   getCreatedAtHuman(file: UploadedFile): string {
+	  
+	if (file.is_archived && this.path === 'archives') {
+		
+		return moment(file.archived_at).fromNow();
+
+	}
+	
+	if (file.is_trashed && this.path === 'trash') {
+		
+		return moment(file.trashed_at).fromNow();
+
+	}
+	if (file.is_trashed) {
+		
+		return moment(file.created_at).fromNow();
+
+	}   
     return moment(file.created_at).fromNow();
   }
 

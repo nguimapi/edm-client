@@ -17,6 +17,8 @@ export class UploadedFile {
     created_at?: string;
     updated_at?: string;
     consulted_at?: string;
+    archived_at?: string;
+    trashed_at?: string;
     isUploading = 0;
     isCompleted = 0;
     percentageLoaded = 0;
